@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { type Address, type Hex, encodeDeployData } from 'viem'
+import { type Address, type Hex, encodeDeployData, getContractAddress } from 'viem'
 import { splitForwarderAbi, mineSalt } from '@programmable-vas/sdk'
 import { useTempoAccount } from '@/hooks/useTempoAccount'
 import { useTempoClient } from '@/hooks/useTempoClient'
@@ -37,11 +37,12 @@ export function ForwarderSetup({ onForwarderReady }: Props) {
       })
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nonce = await publicClient.getTransactionCount({ address })
       const txHash = await (walletClient as any).sendTransaction({ data: deployData, account: address })
       addLog(`tx: ${txHash}`)
 
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
-      const forwarderAddress = receipt.contractAddress!
+      await publicClient.waitForTransactionReceipt({ hash: txHash })
+      const forwarderAddress = getContractAddress({ from: address, nonce: BigInt(nonce) })
       addLog(`deployed at: ${forwarderAddress}`)
 
       setStep('mining')
