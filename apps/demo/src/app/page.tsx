@@ -1,23 +1,28 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { type Address, type Hex } from 'viem'
-import { ConnectWallet } from '@/components/ConnectWallet'
-import { ForwarderSetup } from '@/components/ForwarderSetup'
-import { RulesEditor } from '@/components/RulesEditor'
-import { useTempoAccount } from '@/hooks/useTempoAccount'
+import { useState } from "react";
+import { type Address, type Hex } from "viem";
+import { ConnectWallet } from "@/components/ConnectWallet";
+import { ForwarderSetup } from "@/components/ForwarderSetup";
+import { RulesEditor } from "@/components/RulesEditor";
+import { useTempoAccount } from "@/hooks/useTempoAccount";
 
 export default function Home() {
-  const { isConnected } = useTempoAccount()
-  const [forwarder, setForwarder] = useState<{ address: Address; masterId: Hex } | null>(null)
+  const { isConnected } = useTempoAccount();
+  const [forwarder, setForwarder] = useState<{
+    address: Address;
+    masterId: Hex;
+  } | null>(null);
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-12 space-y-10">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight mb-1">Programmable Virtual Addresses</h1>
+        <h1 className="text-2xl font-bold tracking-tight mb-1">
+          Programmable Virtual Addresses
+        </h1>
         <p className="text-sm text-zinc-400">
-          TIP-1022 split-routing forwarder on Tempo. Deploy a forwarder, set split rules, and watch
-          deposits fan out automatically.
+          TIP-1022 split-routing forwarder on Tempo. Deploy a forwarder, set
+          split rules, and watch deposits fan out automatically.
         </p>
       </div>
 
@@ -34,7 +39,9 @@ export default function Home() {
 
       {isConnected && !forwarder && (
         <ForwarderSetup
-          onForwarderReady={(address, masterId) => setForwarder({ address, masterId })}
+          onForwarderReady={(address, masterId) =>
+            setForwarder({ address, masterId })
+          }
         />
       )}
 
@@ -47,9 +54,12 @@ export default function Home() {
             <div className="text-indigo-400">{forwarder.masterId}</div>
           </div>
 
-          <RulesEditor forwarder={forwarder.address} masterId={forwarder.masterId} />
+          <RulesEditor
+            forwarder={forwarder.address}
+            masterId={forwarder.masterId}
+          />
         </>
       )}
     </main>
-  )
+  );
 }
