@@ -50,9 +50,10 @@ export function ForwarderSetup({ onForwarderReady }: Props) {
 
       let result: ReturnType<typeof mineSalt> = undefined
       let start = 0n
-      const chunkSize = 100_000
+      const chunkSize = 5_000
 
       while (!result) {
+        await new Promise<void>((r) => setTimeout(r, 0)) // yield to event loop
         result = mineSalt({ address: forwarderAddress, start, count: chunkSize })
         start += BigInt(chunkSize)
       }
