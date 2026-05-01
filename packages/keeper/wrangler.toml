@@ -1,0 +1,20 @@
+name = "programmable-vas-keeper"
+main = "src/index.ts"
+compatibility_date = "2024-07-25"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["*/15 * * * * *"]  # every 15 seconds
+
+[[kv_namespaces]]
+binding = "STATE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
+
+[vars]
+FORWARDER_ADDRESS = ""
+TOKEN_ADDRESS = "0x20c0000000000000000000000000000000000000"
+RPC_URL = "https://rpc.moderato.tempo.xyz"
+
+# Secrets (set via `wrangler secret put`):
+# KEEPER_PRIVATE_KEY

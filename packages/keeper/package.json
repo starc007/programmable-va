@@ -1,0 +1,21 @@
+{
+  "name": "@programmable-vas/keeper",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@programmable-vas/sdk": "workspace:*",
+    "ox": "0.14.18",
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240725.0",
+    "typescript": "^5.4.0",
+    "wrangler": "^3.0.0"
+  }
+}
