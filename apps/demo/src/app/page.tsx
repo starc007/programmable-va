@@ -16,13 +16,13 @@ export default function Home() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight mb-1">Programmable Virtual Addresses</h1>
         <p className="text-sm text-zinc-400">
-          TIP-1022 split-routing forwarder on Tempo Moderato (testnet). Deploy a forwarder, set
-          split rules, and watch deposits fan out automatically.
+          TIP-1022 split-routing forwarder on Tempo. Deploy a forwarder, set split rules, and watch
+          deposits fan out automatically.
         </p>
       </div>
 
       <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-        <span className="text-sm text-zinc-500">Tempo Moderato (testnet)</span>
+        <span className="text-sm text-zinc-500">Tempo</span>
         <ConnectWallet />
       </div>
 
