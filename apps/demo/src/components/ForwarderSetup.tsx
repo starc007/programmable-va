@@ -51,23 +51,36 @@ export function ForwarderSetup({ onForwarderReady }: Props) {
 
       const result = await new Promise<{ salt: `0x${string}`; masterId: `0x${string}` }>(
         (resolve, reject) => {
-          const worker = new Worker(
-            new URL('../workers/mine-salt.worker.ts', import.meta.url),
-          )
-          worker.onmessage = (e) => {
-            if (e.data.type === 'progress') {
-              setLog((prev) => {
-                const next = [...prev]
-                next[next.length - 1] = `tried ${(e.data.tried as number).toLocaleString()} salts…`
-                return next
-              })
-            } else if (e.data.type === 'done') {
-              worker.terminate()
-              resolve(e.data.result as { salt: `0x${string}`; masterId: `0x${string}` })
+          const n = navigator.hardwareConcurrency || 4
+          const workers: Worker[] = []
+          let done = false
+
+          for (let i = 0; i < n; i++) {
+            const w = new Worker(new URL('../workers/mine-salt.worker.ts', import.meta.url))
+            workers.push(w)
+            w.onmessage = (e) => {
+              if (done) return
+              if (e.data.type === 'progress') {
+                setLog((prev) => {
+                  const next = [...prev]
+                  next[next.length - 1] = `tried ${(e.data.tried as number).toLocaleString()} salts… (${n} workers)`
+                  return next
+                })
+              } else if (e.data.type === 'done') {
+                done = true
+                workers.forEach((w) => w.terminate())
+                resolve(e.data.result as { salt: `0x${string}`; masterId: `0x${string}` })
+              }
             }
+            w.onerror = (err) => {
+              if (done) return
+              done = true
+              workers.forEach((w) => w.terminate())
+              reject(err)
+            }
+            // each worker starts at offset i, strides by n — covers the full space evenly
+            w.postMessage({ address: forwarderAddress, start: i * 100_000, stride: n * 100_000 })
           }
-          worker.onerror = (err) => { worker.terminate(); reject(err) }
-          worker.postMessage({ address: forwarderAddress })
         },
       )
 
