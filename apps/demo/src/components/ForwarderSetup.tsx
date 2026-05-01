@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { type Address, type Hex, encodeDeployData, getContractAddress } from 'viem'
-import { splitForwarderAbi, mineSalt } from '@programmable-vas/sdk'
+import { splitForwarderAbi } from '@programmable-vas/sdk'
 import { useTempoAccount } from '@/hooks/useTempoAccount'
 import { useTempoClient } from '@/hooks/useTempoClient'
 import { publicClient } from '@/lib/provider'
@@ -46,17 +46,25 @@ export function ForwarderSetup({ onForwarderReady }: Props) {
       addLog(`deployed at: ${forwarderAddress}`)
 
       setStep('mining')
-      addLog('mining registration salt (proof-of-work)…')
+      addLog('mining registration salt (proof-of-work, ~1–5 min)…')
 
-      let result: ReturnType<typeof mineSalt> = undefined
-      let start = 0n
-      const chunkSize = 5_000
-
-      while (!result) {
-        await new Promise<void>((r) => setTimeout(r, 0)) // yield to event loop
-        result = mineSalt({ address: forwarderAddress, start, count: chunkSize })
-        start += BigInt(chunkSize)
-      }
+      const result = await new Promise<{ salt: `0x${string}`; masterId: `0x${string}` }>(
+        (resolve, reject) => {
+          const worker = new Worker(
+            new URL('../workers/mine-salt.worker.ts', import.meta.url),
+          )
+          worker.onmessage = (e) => {
+            if (e.data.type === 'progress') {
+              addLog(`tried ${(e.data.tried as number).toLocaleString()} salts…`)
+            } else if (e.data.type === 'done') {
+              worker.terminate()
+              resolve(e.data.result as { salt: `0x${string}`; masterId: `0x${string}` })
+            }
+          }
+          worker.onerror = (err) => { worker.terminate(); reject(err) }
+          worker.postMessage({ address: forwarderAddress })
+        },
+      )
 
       addLog(`salt found: ${result.salt}`)
       addLog(`masterId will be: ${result.masterId}`)
