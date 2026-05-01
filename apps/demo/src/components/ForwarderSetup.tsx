@@ -47,6 +47,7 @@ export function ForwarderSetup({ onForwarderReady }: Props) {
 
       setStep('mining')
       addLog('mining registration salt (proof-of-work, ~1–5 min)…')
+      addLog('tried 0 salts…')
 
       const result = await new Promise<{ salt: `0x${string}`; masterId: `0x${string}` }>(
         (resolve, reject) => {
@@ -55,7 +56,11 @@ export function ForwarderSetup({ onForwarderReady }: Props) {
           )
           worker.onmessage = (e) => {
             if (e.data.type === 'progress') {
-              addLog(`tried ${(e.data.tried as number).toLocaleString()} salts…`)
+              setLog((prev) => {
+                const next = [...prev]
+                next[next.length - 1] = `tried ${(e.data.tried as number).toLocaleString()} salts…`
+                return next
+              })
             } else if (e.data.type === 'done') {
               worker.terminate()
               resolve(e.data.result as { salt: `0x${string}`; masterId: `0x${string}` })
