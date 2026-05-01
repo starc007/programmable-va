@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getProvider } from '@/lib/provider'
-import type { WalletClient } from 'viem'
+import { type WalletClient } from 'viem'
+import { getProvider, getWalletClient } from '@/lib/provider'
 
 export function useTempoClient(): WalletClient | null {
   const [client, setClient] = useState<WalletClient | null>(null)
@@ -15,12 +15,8 @@ export function useTempoClient(): WalletClient | null {
     const store = provider.store as any
     const sync = () => {
       const { accounts } = store.getState()
-      if (accounts.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setClient(provider.getClient() as any)
-      } else {
-        setClient(null)
-      }
+      const address = accounts[0]?.address ?? null
+      setClient(address ? getWalletClient(address) : null)
     }
 
     sync()

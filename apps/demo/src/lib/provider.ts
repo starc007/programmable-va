@@ -1,7 +1,7 @@
 "use client";
 
 import { Provider, dialog, Storage } from "accounts";
-import { createPublicClient, http } from "viem";
+import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { tempoModerato } from "wagmi/chains";
 
 // Singleton — created once on the client
@@ -23,3 +23,13 @@ export const publicClient = createPublicClient({
   chain: tempoModerato,
   transport: http("https://rpc.moderato.tempo.xyz"),
 });
+
+export function getWalletClient(address: `0x${string}`) {
+  const provider = getProvider();
+  if (!provider) return null;
+  return createWalletClient({
+    account: address,
+    chain: tempoModerato,
+    transport: custom(provider),
+  });
+}
