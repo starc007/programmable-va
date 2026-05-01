@@ -1,9 +1,9 @@
 'use client'
 
 import { use, useEffect, useState } from 'react'
-import { createPublicClient, http, type Address, type Hex, formatUnits } from 'viem'
-import { tempoModerato } from 'wagmi/chains'
-import { watchSplits, splitForwarderAbi } from '@programmable-vas/sdk'
+import { type Address, type Hex, formatUnits } from 'viem'
+import { watchSplits } from '@programmable-vas/sdk'
+import { publicClient } from '@/lib/provider'
 import Link from 'next/link'
 
 type SplitEvent = {
@@ -13,12 +13,6 @@ type SplitEvent = {
   recipientCount: bigint
   at: Date
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const publicClient = createPublicClient({
-  chain: tempoModerato,
-  transport: http('https://rpc.moderato.tempo.xyz'),
-}) as any
 
 export default function WatchPage({ params }: { params: Promise<{ userTag: string }> }) {
   const { userTag } = use(params)
@@ -31,20 +25,24 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
     if (!watching || !forwarderAddress) return
 
     let stopWatch: (() => void) | null = null
+    let active = true
 
-    try {
-      stopWatch = watchSplits(publicClient, forwarderAddress as Address, (event) => {
-        if (event.userTag.toLowerCase() !== userTag.toLowerCase()) return
-        setEvents((prev) => [
-          { ...event, at: new Date() },
-          ...prev,
-        ])
-      })
-    } catch (err) {
-      setError(String(err))
+    async function start() {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        stopWatch = watchSplits(publicClient as any, forwarderAddress as Address, (event) => {
+          if (event.userTag.toLowerCase() !== userTag.toLowerCase()) return
+          if (active) setEvents((prev) => [{ ...event, at: new Date() }, ...prev])
+        })
+      } catch (err) {
+        if (active) setError(String(err))
+      }
     }
 
+    start()
+
     return () => {
+      active = false
       stopWatch?.()
     }
   }, [watching, forwarderAddress, userTag])

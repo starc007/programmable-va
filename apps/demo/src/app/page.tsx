@@ -5,10 +5,10 @@ import { type Address, type Hex } from 'viem'
 import { ConnectWallet } from '@/components/ConnectWallet'
 import { ForwarderSetup } from '@/components/ForwarderSetup'
 import { RulesEditor } from '@/components/RulesEditor'
-import { useAccount } from 'wagmi'
+import { useTempoAccount } from '@/hooks/useTempoAccount'
 
 export default function Home() {
-  const { isConnected } = useAccount()
+  const { isConnected } = useTempoAccount()
   const [forwarder, setForwarder] = useState<{ address: Address; masterId: Hex } | null>(null)
 
   return (
@@ -29,9 +29,6 @@ export default function Home() {
       {!isConnected && (
         <div className="text-center py-12 text-zinc-500 text-sm">
           Connect your wallet to get started.
-          <span className="text-xs mt-1 block">
-            Add Tempo Moderato testnet: chainId 42431, RPC https://rpc.moderato.tempo.xyz
-          </span>
         </div>
       )}
 

@@ -1,12 +1,9 @@
 'use client'
 
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
-import { injected } from 'wagmi/connectors'
+import { useTempoAccount } from '@/hooks/useTempoAccount'
 
 export function ConnectWallet() {
-  const { address, isConnected } = useAccount()
-  const { connect, isPending } = useConnect()
-  const { disconnect } = useDisconnect()
+  const { address, isConnected, isConnecting, connect, disconnect } = useTempoAccount()
 
   if (isConnected && address) {
     return (
@@ -26,11 +23,11 @@ export function ConnectWallet() {
 
   return (
     <button
-      onClick={() => connect({ connector: injected() })}
-      disabled={isPending}
+      onClick={() => connect()}
+      disabled={isConnecting}
       className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-sm font-medium transition-colors"
     >
-      {isPending ? 'connecting…' : 'connect wallet'}
+      {isConnecting ? 'connecting…' : 'connect wallet'}
     </button>
   )
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { type Address, type Hex } from 'viem'
 import {
   splitForwarderAbi,
@@ -9,6 +8,9 @@ import {
   deriveVirtualAddress,
   type Recipient,
 } from '@programmable-vas/sdk'
+import { useTempoAccount } from '@/hooks/useTempoAccount'
+import { useTempoClient } from '@/hooks/useTempoClient'
+import { publicClient } from '@/lib/provider'
 
 type Rule = {
   userTag: Hex
@@ -23,9 +25,8 @@ type Props = {
 }
 
 export function RulesEditor({ forwarder, masterId }: Props) {
-  const { address } = useAccount()
-  const publicClient = usePublicClient()
-  const { data: walletClient } = useWalletClient()
+  const { address } = useTempoAccount()
+  const walletClient = useTempoClient()
 
   const [rules, setRules] = useState<Rule[]>([])
   const [label, setLabel] = useState('')
@@ -41,7 +42,7 @@ export function RulesEditor({ forwarder, masterId }: Props) {
   }
 
   async function addRule() {
-    if (!address || !publicClient || !walletClient || !label) return
+    if (!address || !walletClient || !label) return
     const total = totalBps()
     if (total !== 10000) {
       setError(`basis points must sum to 10000 (currently ${total})`)
@@ -58,7 +59,8 @@ export function RulesEditor({ forwarder, masterId }: Props) {
         .filter((r) => r.addr && r.bps)
         .map((r) => ({ addr: r.addr as Address, percentBps: parseInt(r.bps) }))
 
-      const { request } = await publicClient.simulateContract({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { request } = await (publicClient as any).simulateContract({
         address: forwarder,
         abi: splitForwarderAbi,
         functionName: 'setRule',
@@ -66,7 +68,8 @@ export function RulesEditor({ forwarder, masterId }: Props) {
         account: address,
       })
 
-      const hash = await walletClient.writeContract(request)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hash = await (walletClient as any).writeContract(request)
       await publicClient.waitForTransactionReceipt({ hash })
 
       setRules((prev) => [...prev, { userTag, label, recipients: parsedRecipients, virtualAddress }])
