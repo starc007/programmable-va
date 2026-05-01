@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.local
+
+# Foundry build artifacts
+contracts/out/
+contracts/cache/
+
+# Cloudflare
+.wrangler/
+
+# Next.js
+apps/demo/.next/
+apps/demo/out/
