@@ -1,0 +1,12 @@
+{
+  "name": "programmable-vas",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r --parallel dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
