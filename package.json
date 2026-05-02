@@ -4,9 +4,12 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",
-    "dev": "pnpm -r --parallel dev"
+    "dev": "pnpm -r --parallel dev",
+    "deploy": "tsx scripts/deploy.ts"
   },
   "devDependencies": {
-    "typescript": "^5.4.0"
+    "tsx": "^4.0.0",
+    "typescript": "^5.4.0",
+    "viem": "^2.0.0"
   }
 }

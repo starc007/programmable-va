@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { type Address, type Hex, encodeDeployData, getContractAddress } from 'viem'
-import { splitForwarderAbi } from '@programmable-vas/sdk'
+import { type Address, type Hex, encodeDeployData, keccak256, concat, pad, getCreate2Address } from 'viem'
+import { splitForwarderAbi, VirtualMaster } from '@programmable-vas/sdk'
 import { useTempoAccount } from '@/hooks/useTempoAccount'
 import { useTempoClient } from '@/hooks/useTempoClient'
 import { publicClient } from '@/lib/provider'
@@ -23,69 +23,64 @@ export function ForwarderSetup({ onForwarderReady }: Props) {
 
   const addLog = (msg: string) => setLog((prev) => [...prev, msg])
 
+  // Nick's deterministic CREATE2 factory — deployed on most EVM chains incl. Tempo
+  const FACTORY = '0x4e59b44847b379578588920cA78FbF26c0B4956C' as const
+
   async function deploy() {
     if (!address || !walletClient) return
-    setStep('deploying')
+    setStep('mining')
     setLog([])
 
     try {
-      addLog('deploying SplitForwarder…')
       const deployData = encodeDeployData({
         abi: splitForwarderAbi,
         bytecode: SPLIT_FORWARDER_BYTECODE,
         args: [address],
       })
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const nonce = await publicClient.getTransactionCount({ address })
-      const txHash = await (walletClient as any).sendTransaction({ data: deployData, account: address })
-      addLog(`tx: ${txHash}`)
-
-      await publicClient.waitForTransactionReceipt({ hash: txHash })
-      const forwarderAddress = getContractAddress({ from: address, nonce: BigInt(nonce) })
-      addLog(`deployed at: ${forwarderAddress}`)
-
-      setStep('mining')
-      addLog('mining registration salt (proof-of-work, ~1–5 min)…')
+      // CREATE2 salt = user address padded — deterministic per wallet
+      const create2Salt = pad(address, { size: 32 })
+      const forwarderAddress = getCreate2Address({
+        from: FACTORY,
+        salt: create2Salt,
+        bytecodeHash: keccak256(deployData),
+      })
+      addLog(`forwarder address: ${forwarderAddress}`)
+      addLog('mining registration salt (WASM-accelerated)…')
       addLog('tried 0 salts…')
 
-      const result = await new Promise<{ salt: `0x${string}`; masterId: `0x${string}` }>(
-        (resolve, reject) => {
-          const n = navigator.hardwareConcurrency || 4
-          const workers: Worker[] = []
-          let done = false
-
-          for (let i = 0; i < n; i++) {
-            const w = new Worker(new URL('../workers/mine-salt.worker.ts', import.meta.url))
-            workers.push(w)
-            w.onmessage = (e) => {
-              if (done) return
-              if (e.data.type === 'progress') {
-                setLog((prev) => {
-                  const next = [...prev]
-                  next[next.length - 1] = `tried ${(e.data.tried as number).toLocaleString()} salts… (${n} workers)`
-                  return next
-                })
-              } else if (e.data.type === 'done') {
-                done = true
-                workers.forEach((w) => w.terminate())
-                resolve(e.data.result as { salt: `0x${string}`; masterId: `0x${string}` })
-              }
-            }
-            w.onerror = (err) => {
-              if (done) return
-              done = true
-              workers.forEach((w) => w.terminate())
-              reject(err)
-            }
-            // each worker starts at offset i, strides by n — covers the full space evenly
-            w.postMessage({ address: forwarderAddress, start: i * 100_000, stride: n * 100_000 })
-          }
+      // ox mineSaltAsync: WASM keccak256 + parallel workers, ~10–60s
+      const result = await VirtualMaster.mineSaltAsync({
+        address: forwarderAddress,
+        count: 10 * 2 ** 32,
+        onProgress: ({ attempts, rate, workers: w }: { attempts: number; rate: number; workers: number }) => {
+          setLog((prev) => {
+            const next = [...prev]
+            next[next.length - 1] = `tried ${attempts.toLocaleString()} salts… (${w} workers, ${Math.round(rate / 1000)}k/s)`
+            return next
+          })
         },
-      )
+      })
+
+      if (!result) throw new Error('no salt found in search range — reload and try again')
 
       addLog(`salt found: ${result.salt}`)
       addLog(`masterId will be: ${result.masterId}`)
+
+      setStep('deploying')
+      addLog('deploying SplitForwarder via CREATE2 factory…')
+
+      // Call factory: [32-byte CREATE2 salt][initcode]
+      // No gas token on Tempo — AA paymaster sponsors gas, let provider handle estimation
+      const factoryData = concat([create2Salt, deployData])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const deployHash = await (walletClient as any).sendTransaction({ to: FACTORY, data: factoryData })
+      addLog(`deploy tx: ${deployHash}`)
+      await publicClient.waitForTransactionReceipt({ hash: deployHash })
+
+      const code = await publicClient.getCode({ address: forwarderAddress })
+      if (!code || code === '0x') throw new Error(`no code at ${forwarderAddress} — factory deploy failed`)
+      addLog(`deployed at: ${forwarderAddress}`)
 
       setStep('registering')
       addLog('registering as TIP-1022 virtual master…')
@@ -133,8 +128,8 @@ export function ForwarderSetup({ onForwarderReady }: Props) {
           className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm font-medium transition-colors"
         >
           {step === 'idle' && 'Deploy & Register'}
-          {step === 'deploying' && 'Deploying…'}
           {step === 'mining' && 'Mining salt…'}
+          {step === 'deploying' && 'Deploying…'}
           {step === 'registering' && 'Registering…'}
           {step === 'done' && 'Done ✓'}
         </button>

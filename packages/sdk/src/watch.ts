@@ -18,6 +18,7 @@ export function watchSplits(
     token: Address
     amount: bigint
     recipientCount: bigint
+    txHash: Hex | null
   }) => void,
 ): () => void {
   return publicClient.watchContractEvent({
@@ -32,6 +33,7 @@ export function watchSplits(
           token: log.args.token as Address,
           amount: log.args.amount ?? 0n,
           recipientCount: log.args.recipientCount ?? 0n,
+          txHash: (log.transactionHash as Hex) ?? null,
         })
       }
     },

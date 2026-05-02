@@ -11,6 +11,7 @@ type SplitEvent = {
   token: Address
   amount: bigint
   recipientCount: bigint
+  txHash: Hex | null
   at: Date
 }
 
@@ -32,7 +33,7 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         stopWatch = watchSplits(publicClient as any, forwarderAddress as Address, (event) => {
           if (event.userTag.toLowerCase() !== userTag.toLowerCase()) return
-          if (active) setEvents((prev) => [{ ...event, at: new Date() }, ...prev])
+          if (active) setEvents((prev) => [{ ...event, txHash: event.txHash, at: new Date() }, ...prev])
         })
       } catch (err) {
         if (active) setError(String(err))
@@ -118,6 +119,19 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
             <div className="font-mono text-xs text-zinc-500 break-all">
               token: {event.token}
             </div>
+            {event.txHash && (
+              <div className="font-mono text-xs break-all">
+                <span className="text-zinc-500">tx: </span>
+                <a
+                  href={`https://explorer.moderato.tempo.xyz/tx/${event.txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-400 hover:text-indigo-300"
+                >
+                  {event.txHash}
+                </a>
+              </div>
+            )}
           </div>
         ))}
       </div>

@@ -7,12 +7,28 @@ import { ForwarderSetup } from "@/components/ForwarderSetup";
 import { RulesEditor } from "@/components/RulesEditor";
 import { useTempoAccount } from "@/hooks/useTempoAccount";
 
+const STORAGE_KEY = "programmable-vas:forwarder";
+
+function loadForwarder() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as { address: Address; masterId: Hex }) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveForwarder(f: { address: Address; masterId: Hex }) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(f));
+}
+
 export default function Home() {
   const { isConnected } = useTempoAccount();
   const [forwarder, setForwarder] = useState<{
     address: Address;
     masterId: Hex;
-  } | null>(null);
+  } | null>(() => loadForwarder());
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-12 space-y-10">
@@ -39,9 +55,11 @@ export default function Home() {
 
       {isConnected && !forwarder && (
         <ForwarderSetup
-          onForwarderReady={(address, masterId) =>
-            setForwarder({ address, masterId })
-          }
+          onForwarderReady={(address, masterId) => {
+            const f = { address, masterId };
+            saveForwarder(f);
+            setForwarder(f);
+          }}
         />
       )}
 
