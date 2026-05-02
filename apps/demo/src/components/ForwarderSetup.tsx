@@ -46,6 +46,25 @@ export function ForwarderSetup({ onForwarderReady }: Props) {
         bytecodeHash: keccak256(deployData),
       })
       addLog(`forwarder address: ${forwarderAddress}`)
+
+      // Check if already deployed + registered — skip everything if so
+      const existingCode = await publicClient.getCode({ address: forwarderAddress })
+      if (existingCode && existingCode !== '0x') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const existingMasterId = await (publicClient as any).readContract({
+          address: forwarderAddress,
+          abi: splitForwarderAbi,
+          functionName: 'masterId',
+        }) as Hex
+        if (existingMasterId && existingMasterId !== '0x00000000') {
+          addLog(`already deployed and registered`)
+          addLog(`masterId: ${existingMasterId}`)
+          setStep('done')
+          onForwarderReady(forwarderAddress, existingMasterId)
+          return
+        }
+      }
+
       addLog('mining registration salt (WASM-accelerated)…')
       addLog('tried 0 salts…')
 
@@ -86,16 +105,13 @@ export function ForwarderSetup({ onForwarderReady }: Props) {
       addLog('registering as TIP-1022 virtual master…')
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { request } = await (publicClient as any).simulateContract({
+      const regHash = await (walletClient as any).writeContract({
         address: forwarderAddress,
         abi: splitForwarderAbi,
         functionName: 'register',
         args: [result.salt],
         account: address,
       })
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const regHash = await (walletClient as any).writeContract(request)
       addLog(`registration tx: ${regHash}`)
       await publicClient.waitForTransactionReceipt({ hash: regHash })
 

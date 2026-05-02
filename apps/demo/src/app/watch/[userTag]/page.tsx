@@ -1,10 +1,14 @@
 'use client'
 
 import { use, useEffect, useState } from 'react'
-import { type Address, type Hex, formatUnits } from 'viem'
+import { type Address, type Hex, formatUnits, erc20Abi, parseUnits } from 'viem'
 import { watchSplits } from '@programmable-vas/sdk'
 import { publicClient } from '@/lib/provider'
+import { useTempoAccount } from '@/hooks/useTempoAccount'
+import { useTempoClient } from '@/hooks/useTempoClient'
 import Link from 'next/link'
+
+const TOKEN = '0x20c0000000000000000000000000000000000000' as Address
 
 type SplitEvent = {
   userTag: Hex
@@ -17,10 +21,19 @@ type SplitEvent = {
 
 export default function WatchPage({ params }: { params: Promise<{ userTag: string }> }) {
   const { userTag } = use(params)
+  const { address } = useTempoAccount()
+  const walletClient = useTempoClient()
+
   const [forwarderAddress, setForwarderAddress] = useState('')
   const [events, setEvents] = useState<SplitEvent[]>([])
   const [watching, setWatching] = useState(false)
   const [error, setError] = useState('')
+
+  const [virtualAddress, setVirtualAddress] = useState('')
+  const [amount, setAmount] = useState('1')
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
+  const [lastTx, setLastTx] = useState<Hex | null>(null)
 
   useEffect(() => {
     if (!watching || !forwarderAddress) return
@@ -48,6 +61,29 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
     }
   }, [watching, forwarderAddress, userTag])
 
+  async function send() {
+    if (!address || !walletClient || !virtualAddress || !amount) return
+    setSending(true)
+    setSendError('')
+    setLastTx(null)
+    try {
+      const parsed = parseUnits(amount, 6)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hash = await (walletClient as any).writeContract({
+        address: TOKEN,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [virtualAddress as Address, parsed],
+        account: address,
+      })
+      setLastTx(hash as Hex)
+    } catch (err) {
+      setSendError(String(err))
+    } finally {
+      setSending(false)
+    }
+  }
+
   return (
     <main className="max-w-2xl mx-auto px-4 py-12 space-y-8">
       <div className="flex items-center gap-3">
@@ -62,6 +98,7 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
         <div className="text-indigo-400">{userTag}</div>
       </div>
 
+      {/* Watch config */}
       <div className="space-y-3">
         <div>
           <label className="text-xs text-zinc-400 block mb-1">Forwarder address</label>
@@ -95,6 +132,56 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
         {error && <p className="text-xs text-red-400">{error}</p>}
       </div>
 
+      {/* Send section */}
+      <div className="space-y-3 border border-zinc-800 rounded-lg p-4">
+        <h2 className="text-sm font-semibold">Send pathUSD to virtual address</h2>
+        <div>
+          <label className="text-xs text-zinc-400 block mb-1">Virtual address</label>
+          <input
+            value={virtualAddress}
+            onChange={(e) => setVirtualAddress(e.target.value)}
+            placeholder="0xef098ed8…"
+            className="w-full bg-zinc-800 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-zinc-400 block mb-1">Amount (pathUSD)</label>
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="1"
+            type="number"
+            min="0"
+            className="w-full bg-zinc-800 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+
+        {sendError && <p className="text-xs text-red-400 break-all">{sendError}</p>}
+
+        {lastTx && (
+          <div className="text-xs font-mono break-all">
+            <span className="text-zinc-500">tx: </span>
+            <a
+              href={`https://explore.testnet.tempo.xyz/tx/${lastTx}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-400 hover:text-indigo-300"
+            >
+              {lastTx}
+            </a>
+          </div>
+        )}
+
+        <button
+          onClick={send}
+          disabled={sending || !address || !virtualAddress || !amount}
+          className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm font-medium transition-colors"
+        >
+          {sending ? 'sending…' : !address ? 'connect wallet' : 'send'}
+        </button>
+      </div>
+
+      {/* Events */}
       <div className="space-y-3">
         <h2 className="text-sm font-semibold text-zinc-400">
           Split Events {events.length > 0 && `(${events.length})`}
@@ -102,7 +189,7 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
 
         {events.length === 0 && (
           <div className="text-sm text-zinc-600 py-6 text-center border border-dashed border-zinc-800 rounded-lg">
-            No splits yet. Pay the virtual address for this userTag from another wallet.
+            No splits yet. Send pathUSD to the virtual address above.
           </div>
         )}
 
@@ -123,7 +210,7 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
               <div className="font-mono text-xs break-all">
                 <span className="text-zinc-500">tx: </span>
                 <a
-                  href={`https://explorer.moderato.tempo.xyz/tx/${event.txHash}`}
+                  href={`https://explore.testnet.tempo.xyz/tx/${event.txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-indigo-400 hover:text-indigo-300"

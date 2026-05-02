@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { type Address, type Hex } from 'viem'
+import { type Address, type Hex, erc20Abi, parseUnits } from 'viem'
 import {
   splitForwarderAbi,
   deriveUserTag,
@@ -11,6 +11,8 @@ import {
 import { useTempoAccount } from '@/hooks/useTempoAccount'
 import { useTempoClient } from '@/hooks/useTempoClient'
 import { publicClient } from '@/lib/provider'
+
+const TOKEN = '0x20c0000000000000000000000000000000000000' as Address
 
 type Rule = {
   userTag: Hex
@@ -28,14 +30,28 @@ export function RulesEditor({ forwarder, masterId }: Props) {
   const { address } = useTempoAccount()
   const walletClient = useTempoClient()
 
-  const [rules, setRules] = useState<Rule[]>([])
+  const storageKey = `programmable-vas:rules:${forwarder}`
+
+  const [rules, setRules] = useState<Rule[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const raw = localStorage.getItem(storageKey)
+      return raw ? JSON.parse(raw) : []
+    } catch { return [] }
+  })
   const [label, setLabel] = useState('')
   const [recipients, setRecipients] = useState<{ addr: string; bps: string }[]>([
     { addr: '', bps: '' },
     { addr: '', bps: '' },
   ])
   const [submitting, setSubmitting] = useState(false)
+  const [transferring, setTransferring] = useState<string | null>(null)
   const [error, setError] = useState('')
+
+  function persistRules(next: Rule[]) {
+    localStorage.setItem(storageKey, JSON.stringify(next))
+    setRules(next)
+  }
 
   function totalBps() {
     return recipients.reduce((sum, r) => sum + (parseInt(r.bps) || 0), 0)
@@ -60,25 +76,42 @@ export function RulesEditor({ forwarder, masterId }: Props) {
         .map((r) => ({ addr: r.addr as Address, percentBps: parseInt(r.bps) }))
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { request } = await (publicClient as any).simulateContract({
+      const hash = await (walletClient as any).writeContract({
         address: forwarder,
         abi: splitForwarderAbi,
         functionName: 'setRule',
         args: [userTag as `0x${string}`, parsedRecipients.map(r => ({ addr: r.addr, percentBps: r.percentBps }))],
         account: address,
       })
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hash = await (walletClient as any).writeContract(request)
       await publicClient.waitForTransactionReceipt({ hash })
 
-      setRules((prev) => [...prev, { userTag, label, recipients: parsedRecipients, virtualAddress }])
+      persistRules([...rules, { userTag, label, recipients: parsedRecipients, virtualAddress }])
       setLabel('')
       setRecipients([{ addr: '', bps: '' }, { addr: '', bps: '' }])
     } catch (err) {
       setError(String(err))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function sendTestTransfer(virtualAddress: string) {
+    if (!address || !walletClient) return
+    setTransferring(virtualAddress)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hash = await (walletClient as any).writeContract({
+        address: TOKEN,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [virtualAddress as Address, parseUnits('1', 6)],
+        account: address,
+      })
+      await publicClient.waitForTransactionReceipt({ hash })
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setTransferring(null)
     }
   }
 
@@ -150,7 +183,15 @@ export function RulesEditor({ forwarder, masterId }: Props) {
               <div key={rule.userTag} className="bg-zinc-900 rounded-lg p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{rule.label}</span>
-                  <span className="text-xs font-mono text-zinc-500">{rule.userTag}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-zinc-500">{rule.userTag}</span>
+                    <button
+                      onClick={() => persistRules(rules.filter((r) => r.userTag !== rule.userTag))}
+                      className="text-xs text-red-500 hover:text-red-400 transition-colors"
+                    >
+                      delete
+                    </button>
+                  </div>
                 </div>
                 <div className="text-xs font-mono text-indigo-400 break-all">
                   Virtual address: {rule.virtualAddress}
@@ -163,12 +204,21 @@ export function RulesEditor({ forwarder, masterId }: Props) {
                     </div>
                   ))}
                 </div>
-                <a
-                  href={`/watch/${rule.userTag}`}
-                  className="inline-block text-xs text-indigo-400 hover:text-indigo-300 mt-1"
-                >
-                  watch live splits →
-                </a>
+                <div className="flex items-center gap-3 mt-1">
+                  <a
+                    href={`/watch/${rule.userTag}`}
+                    className="text-xs text-indigo-400 hover:text-indigo-300"
+                  >
+                    watch live splits →
+                  </a>
+                  <button
+                    onClick={() => sendTestTransfer(rule.virtualAddress)}
+                    disabled={transferring === rule.virtualAddress}
+                    className="text-xs px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 transition-colors"
+                  >
+                    {transferring === rule.virtualAddress ? 'sending…' : 'send 1 pathUSD'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
