@@ -34,7 +34,11 @@ export async function runCron(env: Env): Promise<void> {
     await processBatch(env, publicClient, forwarder, deposits)
   }
 
-  await env.STATE.put(LAST_BLOCK_KEY, toBlock.toString())
+  // Only write KV when block advances by 10+ to stay within free tier (1000 writes/day)
+  const lastBlock = lastBlockRaw ? BigInt(lastBlockRaw) : 0n
+  if (toBlock - lastBlock >= 10n) {
+    await env.STATE.put(LAST_BLOCK_KEY, toBlock.toString())
+  }
 }
 
 async function processBatch(
