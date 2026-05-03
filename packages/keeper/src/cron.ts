@@ -8,8 +8,8 @@ import {
 import type { DepositEvent } from '@programmable-vas/sdk'
 import type { Env } from './types.js'
 
-const LAST_BLOCK_KEY = 'lastProcessedBlock'
-const BLOCK_LAG = 2n // avoid reorg issues
+const BLOCK_LAG = 2n
+const SCAN_DEPTH = 100n // scan last 100 blocks every run — no KV needed for demo
 
 export async function runCron(env: Env): Promise<void> {
   const forwarder = env.FORWARDER_ADDRESS as Address
@@ -22,22 +22,12 @@ export async function runCron(env: Env): Promise<void> {
 
   const currentBlock = await publicClient.getBlockNumber()
   const toBlock = currentBlock - BLOCK_LAG
-
-  const lastBlockRaw = await env.STATE.get(LAST_BLOCK_KEY)
-  const fromBlock = lastBlockRaw ? BigInt(lastBlockRaw) + 1n : toBlock - 100n
-
-  if (fromBlock > toBlock) return
+  const fromBlock = toBlock - SCAN_DEPTH
 
   const deposits = await getPendingDeposits(publicClient, forwarder, token, fromBlock, toBlock)
 
   if (deposits.length > 0) {
     await processBatch(env, publicClient, forwarder, deposits)
-  }
-
-  // Only write KV when block advances by 10+ to stay within free tier (1000 writes/day)
-  const lastBlock = lastBlockRaw ? BigInt(lastBlockRaw) : 0n
-  if (toBlock - lastBlock >= 10n) {
-    await env.STATE.put(LAST_BLOCK_KEY, toBlock.toString())
   }
 }
 
