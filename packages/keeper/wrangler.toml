@@ -6,6 +6,11 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["* * * * *"]  # every 1 minute (CF Workers minimum; 15s not supported)
 
+[[kv_namespaces]]
+binding = "STATE"
+id = "c1b734970b9e4b64aacb113ded03f8ce"
+preview_id = "b8f28c1573054a899a4045370cfd6058"
+
 [vars]
 FORWARDER_ADDRESS = "0x502CD09DD40cd2169ae4e6Fbe85CD60656DA0ceC"
 TOKEN_ADDRESS = "0x20c0000000000000000000000000000000000000"

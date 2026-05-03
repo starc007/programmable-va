@@ -8,8 +8,8 @@ import {
 import type { DepositEvent } from '@programmable-vas/sdk'
 import type { Env } from './types.js'
 
+const LAST_BLOCK_KEY = 'lastProcessedBlock'
 const BLOCK_LAG = 2n
-const SCAN_DEPTH = 100n // scan last 100 blocks every run — no KV needed for demo
 
 export async function runCron(env: Env): Promise<void> {
   const forwarder = env.FORWARDER_ADDRESS as Address
@@ -22,13 +22,19 @@ export async function runCron(env: Env): Promise<void> {
 
   const currentBlock = await publicClient.getBlockNumber()
   const toBlock = currentBlock - BLOCK_LAG
-  const fromBlock = toBlock - SCAN_DEPTH
+
+  const lastBlockRaw = await env.STATE.get(LAST_BLOCK_KEY)
+  const fromBlock = lastBlockRaw ? BigInt(lastBlockRaw) + 1n : toBlock - 100n
+
+  if (fromBlock > toBlock) return
 
   const deposits = await getPendingDeposits(publicClient, forwarder, token, fromBlock, toBlock)
 
   if (deposits.length > 0) {
     await processBatch(env, publicClient, forwarder, deposits)
   }
+
+  await env.STATE.put(LAST_BLOCK_KEY, toBlock.toString())
 }
 
 async function processBatch(
