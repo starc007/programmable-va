@@ -8,8 +8,8 @@ import {
 import type { DepositEvent } from '@programmable-vas/sdk'
 import type { Env } from './types.js'
 
-const LAST_BLOCK_KEY = 'lastProcessedBlock'
 const BLOCK_LAG = 2n
+let lastProcessedBlock: bigint | null = null
 
 export async function runCron(env: Env): Promise<void> {
   const forwarder = env.FORWARDER_ADDRESS as Address
@@ -22,9 +22,7 @@ export async function runCron(env: Env): Promise<void> {
 
   const currentBlock = await publicClient.getBlockNumber()
   const toBlock = currentBlock - BLOCK_LAG
-
-  const lastBlockRaw = await env.STATE.get(LAST_BLOCK_KEY)
-  const fromBlock = lastBlockRaw ? BigInt(lastBlockRaw) + 1n : toBlock - 100n
+  const fromBlock = lastProcessedBlock !== null ? lastProcessedBlock + 1n : toBlock - 100n
 
   if (fromBlock > toBlock) return
 
@@ -34,7 +32,7 @@ export async function runCron(env: Env): Promise<void> {
     await processBatch(env, publicClient, forwarder, deposits)
   }
 
-  await env.STATE.put(LAST_BLOCK_KEY, toBlock.toString())
+  lastProcessedBlock = toBlock
 }
 
 async function processBatch(
