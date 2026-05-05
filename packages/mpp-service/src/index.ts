@@ -10,8 +10,9 @@ interface Env {
   TOKEN_ADDRESS: string
 }
 
-// Catalog of gated items — each gets a unique userTag + virtual address
-// Splits are configured on-chain via the forwarder's setRule()
+// All items share one splitKey → one userTag → one rule to configure in the forwarder
+const SPLIT_KEY = 'mpp-store'
+
 const CATALOG = [
   {
     id: 'report-q1-2026',
@@ -49,7 +50,7 @@ app.get('/', (c) => {
     forwarder: c.env.FORWARDER_ADDRESS,
     masterId,
     items: CATALOG.map((item) => {
-      const userTag = deriveUserTag(item.id)
+      const userTag = deriveUserTag(SPLIT_KEY)
       const virtualAddress = deriveVirtualAddress({ masterId, userTag })
       return {
         id: item.id,
@@ -71,7 +72,7 @@ app.get('/content/:id', async (c) => {
   if (!item) return c.json({ error: 'Not found' }, 404)
 
   const masterId = c.env.MASTER_ID as `0x${string}`
-  const userTag = deriveUserTag(item.id)
+  const userTag = deriveUserTag(SPLIT_KEY)
   const virtualAddress = deriveVirtualAddress({ masterId, userTag })
 
   const mppx = Mppx.create({
@@ -117,7 +118,7 @@ app.get('/address/:id', (c) => {
   if (!item) return c.json({ error: 'Not found' }, 404)
 
   const masterId = c.env.MASTER_ID as `0x${string}`
-  const userTag = deriveUserTag(item.id)
+  const userTag = deriveUserTag(SPLIT_KEY)
   const virtualAddress = deriveVirtualAddress({ masterId, userTag })
 
   return c.json({ id, userTag, virtualAddress, masterId })
