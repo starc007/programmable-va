@@ -43,7 +43,10 @@ export default function Home() {
       </div>
 
       <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-        <span className="text-sm text-zinc-500">Tempo</span>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-zinc-500">Tempo</span>
+          <a href="/store" className="text-xs text-indigo-400 hover:text-indigo-300">MPP Store →</a>
+        </div>
         <ConnectWallet />
       </div>
 

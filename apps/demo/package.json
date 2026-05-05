@@ -12,6 +12,7 @@
     "@programmable-vas/sdk": "workspace:*",
     "@tanstack/react-query": "^5.0.0",
     "accounts": "0.8.1",
+    "mppx": "^0.5.11",
     "next": "16.2.4",
     "ox": "0.14.18",
     "react": "19.2.4",
