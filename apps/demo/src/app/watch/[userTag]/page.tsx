@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useState, useSyncExternalStore } from 'react'
 import { type Address, type Hex, formatUnits, erc20Abi, parseUnits } from 'viem'
 import { watchSplits, deriveVirtualAddress } from '@programmable-vas/sdk'
 import { publicClient } from '@/lib/provider'
@@ -24,24 +24,37 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
   const { address } = useTempoAccount()
   const walletClient = useTempoClient()
 
-  const [forwarderAddress, setForwarderAddress] = useState('')
+  type LocalState = { forwarderAddress: string; virtualAddress: string; watching: boolean; ruleExists: boolean | null }
+  const defaultLocal: LocalState = { forwarderAddress: '', virtualAddress: '', watching: false, ruleExists: null }
+
+  const local = useSyncExternalStore(
+    () => () => {},
+    () => {
+      try {
+        const raw = localStorage.getItem('programmable-vas:forwarder')
+        if (!raw) return defaultLocal
+        const { address, masterId } = JSON.parse(raw) as { address: string; masterId: Hex }
+        const rulesRaw = localStorage.getItem(`programmable-vas:rules:${address}`)
+        const rules: { userTag: string }[] = rulesRaw ? JSON.parse(rulesRaw) : []
+        return {
+          forwarderAddress: address,
+          virtualAddress: deriveVirtualAddress({ masterId, userTag: userTag as Hex }),
+          watching: true,
+          ruleExists: rules.some((r) => r.userTag.toLowerCase() === userTag.toLowerCase()),
+        }
+      } catch { return defaultLocal }
+    },
+    () => defaultLocal,
+  )
+  const { forwarderAddress, virtualAddress, ruleExists } = local
+
+  const [manualWatching, setManualWatching] = useState<boolean | null>(null)
+  const watching = manualWatching ?? local.watching
+
   const [events, setEvents] = useState<SplitEvent[]>([])
-  const [watching, setWatching] = useState(false)
   const [error, setError] = useState('')
 
-  const [virtualAddress, setVirtualAddress] = useState('')
   const [amount, setAmount] = useState('1')
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('programmable-vas:forwarder')
-      if (!raw) return
-      const { address, masterId } = JSON.parse(raw) as { address: string; masterId: Hex }
-      setForwarderAddress(address)
-      setVirtualAddress(deriveVirtualAddress({ masterId, userTag: userTag as Hex }))
-      setWatching(true)
-    } catch {}
-  }, [userTag])
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
   const [lastTx, setLastTx] = useState<Hex | null>(null)
@@ -109,20 +122,34 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
         <div className="text-indigo-400">{userTag}</div>
       </div>
 
+      {ruleExists === false && (
+        <div className="flex items-start justify-between gap-4 bg-yellow-950 border border-yellow-800 rounded-lg p-4">
+          <div className="text-sm text-yellow-200">
+            No split rule for this userTag. Payments will reach the virtual address but won&apos;t be forwarded.
+          </div>
+          <Link
+            href="/"
+            className="shrink-0 px-3 py-1.5 rounded bg-yellow-700 hover:bg-yellow-600 text-xs font-medium text-yellow-100 transition-colors"
+          >
+            create rule →
+          </Link>
+        </div>
+      )}
+
       {/* Watch config */}
       <div className="space-y-3">
         <div>
           <label className="text-xs text-zinc-400 block mb-1">Forwarder address</label>
           <input
             value={forwarderAddress}
-            onChange={(e) => setForwarderAddress(e.target.value)}
+            readOnly
             placeholder="0x..."
-            className="w-full bg-zinc-800 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full bg-zinc-800 rounded px-3 py-2 text-sm font-mono text-zinc-400"
           />
         </div>
 
         <button
-          onClick={() => setWatching((w) => !w)}
+          onClick={() => setManualWatching(!watching)}
           disabled={!forwarderAddress}
           className={`px-4 py-2 rounded text-sm font-medium transition-colors disabled:opacity-40 ${
             watching
@@ -150,9 +177,9 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
           <label className="text-xs text-zinc-400 block mb-1">Virtual address</label>
           <input
             value={virtualAddress}
-            onChange={(e) => setVirtualAddress(e.target.value)}
+            readOnly
             placeholder="0xef098ed8…"
-            className="w-full bg-zinc-800 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full bg-zinc-800 rounded px-3 py-2 text-sm font-mono text-zinc-400"
           />
         </div>
         <div>
