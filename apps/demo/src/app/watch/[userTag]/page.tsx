@@ -10,6 +10,38 @@ import Link from 'next/link'
 
 const TOKEN = '0x20c0000000000000000000000000000000000000' as Address
 
+type LocalState = { forwarderAddress: string; virtualAddress: string; watching: boolean; ruleExists: boolean | null }
+const DEFAULT_LOCAL: LocalState = { forwarderAddress: '', virtualAddress: '', watching: false, ruleExists: null }
+let _localCache: { key: string; value: LocalState } | null = null
+
+function getLocalSnapshot(userTag: string): LocalState {
+  const raw = (() => { try { return localStorage.getItem('programmable-vas:forwarder') } catch { return null } })()
+  const rulesRaw = (() => {
+    try {
+      if (!raw) return null
+      const { address } = JSON.parse(raw) as { address: string }
+      return localStorage.getItem(`programmable-vas:rules:${address}`)
+    } catch { return null }
+  })()
+  const cacheKey = `${userTag}|${raw}|${rulesRaw}`
+  if (_localCache?.key === cacheKey) return _localCache.value
+  const value = (() => {
+    try {
+      if (!raw) return DEFAULT_LOCAL
+      const { address, masterId } = JSON.parse(raw) as { address: string; masterId: Hex }
+      const rules: { userTag: string }[] = rulesRaw ? JSON.parse(rulesRaw) : []
+      return {
+        forwarderAddress: address,
+        virtualAddress: deriveVirtualAddress({ masterId, userTag: userTag as Hex }),
+        watching: true,
+        ruleExists: rules.some((r) => r.userTag.toLowerCase() === userTag.toLowerCase()),
+      }
+    } catch { return DEFAULT_LOCAL }
+  })()
+  _localCache = { key: cacheKey, value }
+  return value
+}
+
 type SplitEvent = {
   userTag: Hex
   token: Address
@@ -24,27 +56,10 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
   const { address } = useTempoAccount()
   const walletClient = useTempoClient()
 
-  type LocalState = { forwarderAddress: string; virtualAddress: string; watching: boolean; ruleExists: boolean | null }
-  const defaultLocal: LocalState = { forwarderAddress: '', virtualAddress: '', watching: false, ruleExists: null }
-
   const local = useSyncExternalStore(
     () => () => {},
-    () => {
-      try {
-        const raw = localStorage.getItem('programmable-vas:forwarder')
-        if (!raw) return defaultLocal
-        const { address, masterId } = JSON.parse(raw) as { address: string; masterId: Hex }
-        const rulesRaw = localStorage.getItem(`programmable-vas:rules:${address}`)
-        const rules: { userTag: string }[] = rulesRaw ? JSON.parse(rulesRaw) : []
-        return {
-          forwarderAddress: address,
-          virtualAddress: deriveVirtualAddress({ masterId, userTag: userTag as Hex }),
-          watching: true,
-          ruleExists: rules.some((r) => r.userTag.toLowerCase() === userTag.toLowerCase()),
-        }
-      } catch { return defaultLocal }
-    },
-    () => defaultLocal,
+    () => getLocalSnapshot(userTag),
+    () => DEFAULT_LOCAL,
   )
   const { forwarderAddress, virtualAddress, ruleExists } = local
 
