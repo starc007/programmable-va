@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react'
 import { type Address, type Hex, formatUnits, erc20Abi, parseUnits } from 'viem'
-import { watchSplits } from '@programmable-vas/sdk'
+import { watchSplits, deriveVirtualAddress } from '@programmable-vas/sdk'
 import { publicClient } from '@/lib/provider'
 import { useTempoAccount } from '@/hooks/useTempoAccount'
 import { useTempoClient } from '@/hooks/useTempoClient'
@@ -24,12 +24,32 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
   const { address } = useTempoAccount()
   const walletClient = useTempoClient()
 
-  const [forwarderAddress, setForwarderAddress] = useState('')
+  const [forwarderAddress, setForwarderAddress] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    try {
+      const raw = localStorage.getItem('programmable-vas:forwarder')
+      return raw ? (JSON.parse(raw) as { address: string }).address : ''
+    } catch { return '' }
+  })
   const [events, setEvents] = useState<SplitEvent[]>([])
-  const [watching, setWatching] = useState(false)
+  const [watching, setWatching] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      const raw = localStorage.getItem('programmable-vas:forwarder')
+      return raw ? !!(JSON.parse(raw) as { address: string }).address : false
+    } catch { return false }
+  })
   const [error, setError] = useState('')
 
-  const [virtualAddress, setVirtualAddress] = useState('')
+  const [virtualAddress, setVirtualAddress] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    try {
+      const raw = localStorage.getItem('programmable-vas:forwarder')
+      if (!raw) return ''
+      const { masterId } = JSON.parse(raw) as { masterId: Hex }
+      return deriveVirtualAddress({ masterId, userTag: userTag as Hex })
+    } catch { return '' }
+  })
   const [amount, setAmount] = useState('1')
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
