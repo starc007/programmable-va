@@ -24,33 +24,24 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
   const { address } = useTempoAccount()
   const walletClient = useTempoClient()
 
-  const [forwarderAddress, setForwarderAddress] = useState(() => {
-    if (typeof window === 'undefined') return ''
-    try {
-      const raw = localStorage.getItem('programmable-vas:forwarder')
-      return raw ? (JSON.parse(raw) as { address: string }).address : ''
-    } catch { return '' }
-  })
+  const [forwarderAddress, setForwarderAddress] = useState('')
   const [events, setEvents] = useState<SplitEvent[]>([])
-  const [watching, setWatching] = useState(() => {
-    if (typeof window === 'undefined') return false
-    try {
-      const raw = localStorage.getItem('programmable-vas:forwarder')
-      return raw ? !!(JSON.parse(raw) as { address: string }).address : false
-    } catch { return false }
-  })
+  const [watching, setWatching] = useState(false)
   const [error, setError] = useState('')
 
-  const [virtualAddress, setVirtualAddress] = useState(() => {
-    if (typeof window === 'undefined') return ''
+  const [virtualAddress, setVirtualAddress] = useState('')
+  const [amount, setAmount] = useState('1')
+
+  useEffect(() => {
     try {
       const raw = localStorage.getItem('programmable-vas:forwarder')
-      if (!raw) return ''
-      const { masterId } = JSON.parse(raw) as { masterId: Hex }
-      return deriveVirtualAddress({ masterId, userTag: userTag as Hex })
-    } catch { return '' }
-  })
-  const [amount, setAmount] = useState('1')
+      if (!raw) return
+      const { address, masterId } = JSON.parse(raw) as { address: string; masterId: Hex }
+      setForwarderAddress(address)
+      setVirtualAddress(deriveVirtualAddress({ masterId, userTag: userTag as Hex }))
+      setWatching(true)
+    } catch {}
+  }, [userTag])
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
   const [lastTx, setLastTx] = useState<Hex | null>(null)
