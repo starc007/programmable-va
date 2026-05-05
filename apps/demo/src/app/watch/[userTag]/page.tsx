@@ -82,6 +82,34 @@ export default function WatchPage({ params }: { params: Promise<{ userTag: strin
 
     async function start() {
       try {
+        // load past Split events from last 500 blocks
+        const currentBlock = await publicClient.getBlockNumber()
+        const fromBlock = currentBlock > 500n ? currentBlock - 500n : 0n
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pastLogs = await (publicClient as any).getLogs({
+          address: forwarderAddress as Address,
+          event: { type: 'event', name: 'Split', inputs: [
+            { name: 'userTag', type: 'bytes6', indexed: true },
+            { name: 'token', type: 'address', indexed: true },
+            { name: 'amount', type: 'uint256', indexed: false },
+            { name: 'recipientCount', type: 'uint256', indexed: false },
+          ]},
+          args: { userTag: userTag as `0x${string}` },
+          fromBlock,
+          toBlock: currentBlock,
+        })
+        if (active && pastLogs.length > 0) {
+          const past = pastLogs.map((log: { args: { token: Address; amount: bigint; recipientCount: bigint }; transactionHash: Hex; blockNumber: bigint }) => ({
+            userTag: userTag as Hex,
+            token: log.args.token,
+            amount: log.args.amount ?? 0n,
+            recipientCount: log.args.recipientCount ?? 0n,
+            txHash: log.transactionHash,
+            at: new Date(Number(log.blockNumber) * 1000),
+          }))
+          setEvents(past.reverse())
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         stopWatch = watchSplits(publicClient as any, forwarderAddress as Address, (event) => {
           if (event.userTag.toLowerCase() !== userTag.toLowerCase()) return
