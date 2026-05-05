@@ -9,6 +9,7 @@ contracts/cache/
 
 # Cloudflare
 .wrangler/
+.dev.vars
 
 # Next.js
 apps/demo/.next/

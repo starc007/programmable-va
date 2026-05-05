@@ -1,0 +1,12 @@
+name = "programmable-vas-mpp-service"
+main = "src/index.ts"
+compatibility_date = "2024-07-25"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+MASTER_ID = "0xef098ed8"
+FORWARDER_ADDRESS = "0x502CD09DD40cd2169ae4e6Fbe85CD60656DA0ceC"
+TOKEN_ADDRESS = "0x20c0000000000000000000000000000000000000"
+
+# Secrets (set via `wrangler secret put`):
+# MPP_SECRET_KEY
