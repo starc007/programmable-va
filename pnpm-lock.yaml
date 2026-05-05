@@ -29,6 +29,9 @@ importers:
       accounts:
         specifier: 0.8.1
         version: 0.8.1(@types/react@19.2.14)(@wagmi/core@2.22.1(@tanstack/query-core@5.100.7)(@types/react@19.2.14)(react@19.2.4)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@19.2.4))(viem@2.48.7(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.1)))(react@19.2.4)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@19.2.4))(viem@2.48.7(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.1))(wagmi@2.19.5(@tanstack/query-core@5.100.7)(@tanstack/react-query@5.100.7(react@19.2.4))(@types/react@19.2.14)(bufferutil@4.1.0)(react@19.2.4)(typescript@5.9.3)(utf-8-validate@5.0.10)(viem@2.48.7(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.1))(zod@4.4.1))
+      mppx:
+        specifier: ^0.5.11
+        version: 0.5.11(hono@4.12.16)(typescript@5.9.3)(viem@2.48.7(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.1))
       next:
         specifier: 16.2.4
         version: 16.2.4(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
