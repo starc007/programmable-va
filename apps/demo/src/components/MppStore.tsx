@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Mppx, tempo } from 'mppx/client'
 import { useTempoAccount } from '@/hooks/useTempoAccount'
+import { useTempoClient } from '@/hooks/useTempoClient'
 
 const MPP_SERVICE_URL = 'http://localhost:8788'
 
@@ -30,6 +31,7 @@ type ContentResult = {
 
 export function MppStore() {
   const { address } = useTempoAccount()
+  const walletClient = useTempoClient()
   const [items, setItems] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState<string | null>(null)
@@ -45,12 +47,13 @@ export function MppStore() {
   }, [])
 
   async function purchase(item: CatalogItem) {
-    if (!address) return
+    if (!address || !walletClient) return
     setPurchasing(item.id)
     setErrors((e) => ({ ...e, [item.id]: '' }))
 
     const mppx = Mppx.create({
-      methods: [tempo({ account: address })],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      methods: [tempo({ getClient: () => walletClient as any })],
       polyfill: false,
     })
 
